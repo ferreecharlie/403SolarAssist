@@ -1,0 +1,1 @@
+In pervious weeks I worked on simulation by using MATLAB Simulink. So far, I could get the square AC signal as an output of inverter, but for coming week I’m going to work on how to get a nice sine wave out of the inverter with the good THD value. For doing so, I’m going to use comparator between a sine wave generator and sawtooth signal generator to generate SPWM signal.
