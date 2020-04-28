@@ -1,0 +1,450 @@
+/*//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECEN 403
+
+RYAN JOHNSON
+
+TEAM: SOLAR ASSIST
+
+MSP 432 - CONTROLLER CODE
+
+PROGRAMMED TO HANDLE MPPT SOLAR TRACKING CONTROLS AND DC-DC POWER-SHARING CONTROLS
+
+WORK IN PROGRESS...
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+*/
+
+#include "msp.h"
+#include "driverlib.h"
+#include "gpio.c"
+#include "interrupt.c"
+#include "timer_a.c"
+#include "cpu.c"
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+
+//WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
+
+
+
+// INITIALIZATION
+// INITIALIZE VOLTAGE INPUTS
+// Make P4.6 an input for Vsupply
+void SW1_Init(void){
+    P4->SEL0 &= ~0x07;
+    P4->SEL1 &= ~0x07;
+    P4->DIR &= ~0x07;
+}
+// Make P4.1 an input for Vinverter
+void SW2_Init(void){
+    P4->SEL0 &= ~0x02;
+    P4->SEL1 &= ~0x02;
+    P4->DIR &= ~0x02;
+}
+// Make P3.0 an input for Vpanel
+void SW3_Init(void){
+    P3->SEL0 &= ~0x01;
+    P3->SEL1 &= ~0x01;
+    P3->DIR &= ~0x01;
+}
+// Make P5.0 an input for Vconverter
+void SW4_Init(void){
+    P5->SEL0 &= ~0x01;
+    P5->SEL1 &= ~0x01;
+    P5->DIR &= ~0x01;
+}
+// Make P5.2 an input for Vcharger
+void SW5_Init(void){
+    P5->SEL0 &= ~0x03;
+    P5->SEL1 &= ~0x03;
+    P5->DIR &= ~0x03;
+}
+// Make P3.6 an input for Vbattry
+void SW6_Init(void){
+    P3->SEL0 &= ~0x07;
+    P3->SEL1 &= ~0x07;
+    P3->DIR &= ~0x07;
+}
+
+//READ FROM DESIRED VOLATGE IN PINS
+// Read from P4.6, Vsupply
+uint8_t Sw1(void) {
+    uint8_t data;
+    data = P4->IN;
+    data = data & 0x07;
+    return data;
+}
+// Read from P4.1, Vinverter
+uint8_t Sw2(void) {
+    uint8_t data;
+    data = P4->IN;
+    data = data & 0x02;
+    return data;
+}
+// Read from P3.0, Vpanel
+uint8_t Sw3(void) {
+    uint8_t data;
+    data = P3->IN;
+    data = data & 0x01;
+    return data;
+}
+// Read from P5.0, Vconverter
+uint8_t Sw4(void) {
+    uint8_t data;
+    data = P5->IN;
+    data = data & 0x01;
+    return data;
+}
+// Read from P5.2, Vcharger
+uint8_t Sw5(void) {
+    uint8_t data;
+    data = P5->IN;
+    data = data & 0x03;
+    return data;
+}
+// Read from P3.6, Vbattery
+uint8_t Sw6(void) {
+    uint8_t data;
+    data = P3->IN;
+    data = data & 0x07;
+    return data;
+}
+
+// INITIALIZE CURRENT INPUTS
+// Make P6.6 an input for Isupply
+void SW7_Init(void){
+    P6->SEL0 &= ~0x07;
+    P6->SEL1 &= ~0x07;
+    P6->DIR &= ~0x07;
+}
+// Make P6.7 an input for Iinverter
+void SW8_Init(void){
+    P6->SEL0 &= ~0x08;
+    P6->SEL1 &= ~0x08;
+    P6->DIR &= ~0x08;
+}
+// Make P2.3 an input for Ipanel
+void SW9_Init(void){
+    P2->SEL0 &= ~0x04;
+    P2->SEL1 &= ~0x04;
+    P2->DIR &= ~0x04;
+}
+// Make P5.1 an input for Iconverter
+void SW10_Init(void){
+    P5->SEL0 &= ~0x02;
+    P5->SEL1 &= ~0x02;
+    P5->DIR &= ~0x02;
+}
+// Make P3.5 an input for Icharger
+void SW11_Init(void){
+    P3->SEL0 &= ~0x06;
+    P3->SEL1 &= ~0x06;
+    P3->DIR &= ~0x06;
+}
+// Make P3.7 an input for Ibattery
+void SW12_Init(void){
+    P3->SEL0 &= ~0x08;
+    P3->SEL1 &= ~0x08;
+    P3->DIR &= ~0x08;
+}
+
+// READ FROM DESIRED CURRERNT IN PINS
+// Read from P6.6, Isupply
+uint8_t Sw7(void) {
+    uint8_t data;
+    data = P6->IN;
+    data = data & 0x07;
+    return data;
+}
+// Read from P6.7 Iinverter
+uint8_t Sw8(void) {
+    uint8_t data;
+    data = P6->IN;
+    data = data & 0x08;
+    return data;
+}
+// Read from P2.3, Ipanel
+uint8_t Sw9(void) {
+    uint8_t data;
+    data = P2->IN;
+    data = data & 0x04;
+    return data;
+}
+// Read from P5.1, Iconverter
+uint8_t Sw10(void) {
+    uint8_t data;
+    data = P5->IN;
+    data = data & 0x02;
+    return data;
+}
+// Read from P3.5, Icharger
+uint8_t Sw11(void) {
+    uint8_t data;
+    data = P3->IN;
+    data = data & 0x06;
+    return data;
+}
+// Read from P3.7, Ibattery
+uint8_t Sw12(void) {
+    uint8_t data;
+    data = P3->IN;
+    data = data & 0x08;
+    return data;
+}
+
+void main(void)
+{
+
+    float   Isupply;
+    float   Iinverter;
+    float   Ipanel = 0;
+    float   Iconverter;
+    float   Ibattery;
+    float   Icharger;
+    float   Vsupply;
+    float   Vinverter;
+    float   Vpanel = 0;
+    float   Vconverter;
+    float   Vcharger;
+    float   Vbattery;
+    float   LoadShare;
+    float   Dconverter;
+    float   Dcharger = 0.65;
+    float   MaxBatteryAmp;
+    float   BulkChargeVolt;
+    float   Error;
+    float   Epoint;
+    float   AddI;
+    float   ExtraShare;
+    float   Idesired;
+    float   Tvalue;
+    float   Lvalue;
+    float   PotCost = 0;
+    float   Cost = 0;
+    float   Saved = 0;
+    float   Rate;
+    float   Ppanel;
+    float   PrevPpanel = 0;
+    float   PrevVpanel = 0;
+    float   PrevIpanel = 0;
+
+
+    while (1)
+    {
+
+        // READ FROM INPUT PINS
+        // WORK IN PROGESS
+        // Will have to implement PMbus to read I2C
+        // Will use Vin, Iin, and Pin functions
+
+
+        Vsupply = Sw1();
+        Vinverter = Sw2();
+        Vpanel = Sw3();
+        Vconverter = Sw4();
+        Vcharger = Sw5();
+        Vbattery = Sw6();
+        Isupply = Sw7();
+        Iinverter = Sw8();
+        Ipanel = Sw9();
+        Iconverter = Sw10();
+        Icharger = Sw11();
+        Ibattery = Sw12();
+
+
+
+        //LOADSHARING CONRTOLS:
+        //Check for % stored in battery and outputs a loadshare value
+        //which will tell the % of the load that can be shared with the battry
+
+
+        if (Vbattery == 12)                                             //First check, check for maximum power storage
+        {                                                               //If the battery is fully charged, the battery
+            LoadShare = 100;                                            //Will hold the entire load, which is sustainable
+        }                                                               //As long as the solar panel is distributing excess power
+        else
+            if (Vbattery >= 11 && Vbattery < 12)                        //Once there is no more excess of energy and we start
+            {                                                           //to actually tap into the stored energy in the battery
+                LoadShare = 75;                                         //Loadhare will then go from 100% to 75%
+            }
+            else
+                if (Vbattery < 11 && Vbattery >= 8)                     //Once the battery is drained to between 90%
+                {                                                       //and 70% the Loadshare percentage will be lowered to 50%
+                    LoadShare = 50;
+                }
+                else
+                    if (Vbattery >= 6 && Vbattery < 8)                     //Once the battery is drained to between 70%
+                    {                                                      //and 50% the Loadshare percentage will be lowered to 35%
+                        LoadShare = 35;
+                    }
+                    else
+                        if (Vbattery > 4 && Vbattery < 6)                  //Once the battery is drained to between 50%
+                        {                                                  //and 33% the Loadshare percentage will be lowered to 25%
+                            LoadShare = 25;
+                        }
+                        else
+                            if (Vbattery <= 4)                             //Once the battery is drained to 33% or lower then
+                            {                                              //the Loadshare percentage will become 0% and the
+                                LoadShare = 0;                             //grid will take the entire load
+                            }
+                            else
+                                LoadShare = 0;                             //In the case where the algorithm gets lost for some reason
+                                                                           //the grid will take over the load AKA when in doubt
+                                                                           //have the grid take over the load.
+
+
+        /* Gives Duty Cycle of the converter based on loadshare value and Voltage needed to achieve that loadshare. */
+        //
+        // DC-DC CONVERTER IS NO LONGER CONTROLLED SIMPLY BY DUTY CYCLE, CODE BELOW WILL CHANGE
+        // TO MATCH BLOCK DIAGRAM AS MENTIONED IN THE FINAL PRESENTATION AND FINAL REPORT
+        //
+        //Iout = Iin*(1-duty cycle)/3
+        // Then,
+        //duty cycle = 1-(3Iout/Iin)
+        //Therefore, by setting Iout = (Loadshare %) * Iload, we get the desired current pulled from the battery
+        //Assuming 0 < Duty cycle < 1
+        //Below calculates the duty cycle in this way...
+
+        Idesired = (LoadShare/100)*Iinverter;                                               //Calculate desired current
+
+        if(((1-3*(Idesired/Ibattery)) > 0)&& ((1-3*(Idesired/Ibattery)) < 1))               // Confirm 0 < Duty cycle < 1
+        {
+            Dconverter = (1-3*(Idesired/Ibattery));                                         // Set duty cycle
+        }
+        else
+            Dconverter = 0.01;                                                              // If current is impossible to pull
+
+
+        // let the grid handle it.
+        // Feedback controls:
+        // Check feedback from the inverter and push current to match the inverter current
+
+
+        // During a fault in the power system
+        if (Isupply == 0)
+        {
+            if (Vbattery >= 6)
+            {
+                Dconverter = 0.99;
+            }
+            else
+                Dconverter = 0.01;
+        }
+
+
+
+            // SOLAR CHARGING CONTROLS
+            // First save P, V & I Values
+
+             PrevPpanel = Ppanel;
+             PrevVpanel = Vpanel;
+             PrevIpanel = Ipanel;
+
+             //Read New V/I values after time delay
+
+             __delay_cycles(1000);                                               //Intrinsic delay cycles, delays 1000 cycles
+
+             Vpanel = Sw8();
+             Ipanel = Sw3();
+
+             // First check is panel not producing any current
+              if (Ipanel == 0)
+                  {
+                  if (Vbattery >= 8)                                             // If there's a fault and we gave sufficient battery
+                  {                                                              // attempt to hold the load as long as possible
+                      Dconverter = 0.99;
+                  }
+                  else                                                           // If there is not enough battery or we have used too
+                      Dconverter = 0.01;                                         // Much battery trying to keep the load, have the
+                  }                                                              // grid hold the load
+
+           // Calculate new Power and compare
+             Ppanel = (Vpanel * Ipanel);
+
+           //Begin MPPT tracking
+
+             if (Ppanel != PrevPpanel)                                                      //if power has change/ we are not at the mpp
+             {                                                                              //we must track the mpp
+                 if (Ppanel > PrevPpanel)
+                 {
+                     if (Vpanel > PrevVpanel)                                               //if Vref is too high we must lower it
+                     {                                                                      //by lowering the duty cycle
+                         Dcharger = Dcharger - 0.01;                                        //Likewise, we raise the duty cycle
+                     }                                                                      //if the Vref it too low
+                     else
+                     {
+                         Dcharger = Dcharger + 0.01;
+                     }
+
+                 }
+                 else
+                 {
+                     if (Vpanel < PrevVpanel)                                               //Similar to above we raise or lower the
+                     {                                                                      //duty cycle as per the Vref measured
+                         Dcharger = Dcharger + 0.01;
+                     }
+                     else
+                     {
+                         Dcharger = Dcharger - 0.01;
+                     }
+                 }
+             }
+
+
+
+        // internally save value of cost saved
+
+        PotCost = PotCost+Rate;
+        Cost    = (((Rate)*(LoadShare/100)) + Cost);
+        Saved   = Saved + (PotCost - Cost);
+
+
+
+        // OUTPUT PWM SIGNAL
+
+        //Converter Duty Cycle Output
+
+        //NOTE, CONVERTER IS NO LONGER CONTROLLED BY DUTY CYCLE
+
+        Timer_A_PWMConfig pwmConfig1 =
+        {
+                TIMER_A_CLOCKSOURCE_SMCLK,                                                      //Given Clocksourse
+                TIMER_A_CLOCKSOURCE_DIVIDER_1,                                                  //Given Clock source Divider
+                32000,                                                                          //timerperiod, I chose 32000
+                TIMER_A_CAPTURECOMPARE_REGISTER_3,                                              //Compare register, use P2.6
+                TIMER_A_OUTPUTMODE_RESET_SET,                                                   //reset for duty cycle
+                (32000*Dconverter)                                                              //Returns Duty Cycle of Converter
+        };
+
+        //Solar Charger duty cycle
+
+        Timer_A_PWMConfig pwmConfig2 =
+        {
+                TIMER_A_CLOCKSOURCE_SMCLK,                                                      //Given Clocksourse
+                TIMER_A_CLOCKSOURCE_DIVIDER_1,                                                  //Given Clock source Divider
+                32000,                                                                          //timerperiod, I chose 32000
+                TIMER_A_CAPTURECOMPARE_REGISTER_4,                                              //Compare register, use P2.6
+                TIMER_A_OUTPUTMODE_RESET_SET,                                                   //reset for duty cycle
+                (32000*Dcharger)                                                                //Returns Duty Cycle of Converter
+        };
+
+        //Set output pins P2.6,P2.7
+
+        GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN5,GPIO_PRIMARY_MODULE_FUNCTION);  // SUBJECT TO CHANGE
+        GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN6,GPIO_PRIMARY_MODULE_FUNCTION);
+
+        //Generate PWM with desired Duty cycles
+        Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig1);                                                    // SUBJECT TO CHANGE
+        Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig2);
+
+
+
+    }
+
+}
