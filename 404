@@ -1,26 +1,35 @@
 Week of 14th September:
 DC-DC Converter subsystem team: Ordered and waiting for converter parts
+Microcontroller subsystem team: Order MSP 432 launchpad and continue working on controls code.
 
 Week of 21st September:
 DC-DC Converter subsystem team: Ordered solar panel, battery, etc
+Microcontroller subsystem team: begin testing code on msp 432 and verify inputs/outputs and PWM duty cycle varriation.
 
 Week of 28th September:
 DC-DC Converter subsystem team: Improved design of DC-DC converter
+Microcontroller subsystem team: Test loadsharing algorithm and controls are working with output PWM.
 
 Week of 5th October:
 DC-DC Converter subsystem team: Ordered more converter parts; conducted more simulation
+Microcontroller subsystem team: Test complete code (without sensor data) and verify it works propperly, edit PWM to be compatible with contoroller.
 
 Week of 12th October:
 DC-DC Converter subsystem team: Conducted test using converter; designed new converter
+Microcontroller subsystem team: Test new updated code and start testing sensors with msp 432.
 
 Week of 19th October:
 DC-DC Converter subsystem team: Ordered diodes and soldered converter parts; began testing; Started PCB for converter
+Microcontroller subsystem team: Continue working on reading sensor data with the msp 432.
 
 Week of 26th October:
 DC-DC Converter subsystem team: Converter testing 
+Microcontroller subsystem team: Move code over to arduino instead of MSP 432 and test sensors and controls on arduino.
 
 Week of 2nd November:
 DC-DC Converter subsystem team: Testing converter; prepare presentation; tested inverter
+Microcontroller subsystem team: Finish wiring up sensors to MUX and tested all sensors and controls at the same time.
 
 Week of 9th November:
 DC-DC Converter subsystem team: Test converter and integrate into full system; tested solar panels
+Microcontroller subsystem team: Test completed code and integrate with new controller for demo
